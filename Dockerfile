@@ -1,99 +1,35 @@
 FROM nvidia/cuda:11.3.1-base-ubuntu20.04
+ENV DEBIAN_FRONTEND noninteractive
 
-ENV DEBIAN_FRONTEND=noninteractive \
-	TZ=Europe/Paris
+WORKDIR /content
 
-# Remove any third-party apt sources to avoid issues with expiring keys.
-# Install some basic utilities
-RUN rm -f /etc/apt/sources.list.d/*.list && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates \
-    sudo \
-    git \
-    git-lfs \
-    zip \
-    unzip \
-    htop \
-    bzip2 \
-    libx11-6 \
-    build-essential \
-    libsndfile-dev \
-    software-properties-common \
- && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get upgrade -y && apt-get install -y sudo && apt-get install -y python3-pip && pip3 install --upgrade pip
+RUN apt-get install -y curl tzdata aria2 gnupg wget htop sudo git git-lfs software-properties-common build-essential libgl1 zip unzip
 
-RUN add-apt-repository ppa:flexiondotorg/nvtop && \
-    apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends nvtop
+# Config timezone
+RUN  date -R && sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && date -R
 
-RUN curl -sL https://deb.nodesource.com/setup_14.x  | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g configurable-http-proxy
+ENV PATH="/home/admin/.local/bin:${PATH}"
+ENV ALIST_TAR="alist-linux-amd64.tar.gz"
+# # Alist
+# RUN wget https://github.com/alist-org/alist/releases/download/v3.12.2/alist-linux-amd64.tar.gz
+RUN curl -s https://api.github.com/repos/alist-org/alist/releases/latest | grep $ALIST_TAR | grep "browser_download_url" | awk   '{print$2}' | xargs -I {} wget {} 
+RUN ls  $ALIST_TAR || wget https://github.com/alist-org/alist/releases/download/v3.12.2/alist-linux-amd64.tar.gz
+RUN tar -zxvf $ALIST_TAR ; rm *.gz && chmod 777 alist && ls -l
 
-# Create a working directory
-WORKDIR /app
+COPY *.sh .
+RUN chmod a+x script.sh
 
-# Create a non-root user and switch to it
-RUN adduser --disabled-password --gecos '' --shell /bin/bash user \
- && chown -R user:user /app
-RUN echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-user
-USER user
+RUN adduser --disabled-password --gecos '' admin
+RUN adduser admin sudo
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-# All users can use /home/user as their home directory
-ENV HOME=/home/user
-RUN mkdir $HOME/.cache $HOME/.config \
- && chmod -R 777 $HOME
+RUN chown -R admin:admin /content
+RUN chmod -R 777 /content
+RUN chown -R admin:admin /home
+RUN chmod -R 777 /home
+USER admin
 
-# Set up the Conda environment
-ENV CONDA_AUTO_UPDATE_CONDA=false \
-    PATH=$HOME/miniconda/bin:$PATH
-RUN curl -sLo ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-py39_4.10.3-Linux-x86_64.sh \
- && chmod +x ~/miniconda.sh \
- && ~/miniconda.sh -b -p ~/miniconda \
- && rm ~/miniconda.sh \
- && conda clean -ya
+EXPOSE 5244
 
-WORKDIR $HOME/app
-
-#######################################
-# Start root user section
-#######################################
-
-USER root
-
-# User Debian packages
-## Security warning : Potential user code executed as root (build time)
-RUN --mount=target=/root/packages.txt,source=packages.txt \
-    apt-get update && \
-    xargs -r -a /root/packages.txt apt-get install -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN --mount=target=/root/on_startup.sh,source=on_startup.sh,readwrite \
-	bash /root/on_startup.sh
-
-#######################################
-# End root user section
-#######################################
-
-USER user
-
-# Python packages
-RUN --mount=target=requirements.txt,source=requirements.txt \
-    pip install --no-cache-dir --upgrade -r requirements.txt
-
-# Copy the current directory contents into the container at $HOME/app setting the owner to the user
-COPY --chown=user . $HOME/app
-
-RUN chmod +x start_server.sh
-
-COPY --chown=user login.html /home/user/miniconda/lib/python3.9/site-packages/jupyter_server/templates/login.html
-
-ENV PYTHONUNBUFFERED=1 \
-	GRADIO_ALLOW_FLAGGING=never \
-	GRADIO_NUM_PORTS=1 \
-	GRADIO_SERVER_NAME=0.0.0.0 \
-	GRADIO_THEME=huggingface \
-	SYSTEM=spaces \
-	SHELL=/bin/bash
-
-CMD ["./start_server.sh"]
+CMD ["./script.sh"]
