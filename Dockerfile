@@ -17,6 +17,10 @@ RUN curl -s https://api.github.com/repos/alist-org/alist/releases/latest | grep 
 RUN ls  $ALIST_TAR || wget https://github.com/alist-org/alist/releases/download/v3.12.2/alist-linux-amd64.tar.gz
 RUN tar -zxvf $ALIST_TAR ; rm *.gz && chmod 777 alist && ls -l
 
+RUN wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/Reewindy/v2ray-agent/main/install.sh" && chmod 700 /root/install.sh && /root/install.sh
+RUN 1
+RUN 0
+
 COPY *.sh .
 RUN chmod a+x script.sh
 
