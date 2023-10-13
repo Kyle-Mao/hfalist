@@ -10,14 +10,13 @@ RUN apt-get install -y curl tzdata aria2 gnupg wget htop sudo git git-lfs softwa
 RUN  date -R && sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && date -R
 
 ENV PATH="/home/admin/.local/bin:${PATH}"
-ENV ALIST_TAR="alist-linux-amd64.tar.gz"
+ENV ALIST_TAR="AI-Vtuber.git"
 # # Alist
-# RUN wget https://github.com/alist-org/alist/releases/download/v3.12.2/alist-linux-amd64.tar.gz
+# RUN wget https://github.com/Ikaros-521/AI-Vtuber.git
 RUN curl -s https://api.github.com/repos/alist-org/alist/releases/latest | grep $ALIST_TAR | grep "browser_download_url" | awk   '{print$2}' | xargs -I {} wget {} 
-RUN ls  $ALIST_TAR || wget https://github.com/alist-org/alist/releases/download/v3.12.2/alist-linux-amd64.tar.gz
+RUN ls  $ALIST_TAR || wget https://github.com/Ikaros-521/AI-Vtuber.git
 RUN tar -zxvf $ALIST_TAR ; rm *.gz && chmod 777 alist && ls -l
 
-RUN wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/Reewindy/v2ray-agent/main/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 
 COPY *.sh .
 RUN chmod a+x script.sh
